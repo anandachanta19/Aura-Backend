@@ -1,11 +1,10 @@
-from requests import Session
 import spotipy
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 from rest_framework.response import Response
-from rest_framework.decorators import APIView, api_view
+from rest_framework.decorators import api_view
 from spotify.models import SpotifyToken
 from .handlers.session_handler import SpotifySessionHandler
 from django.utils import timezone
