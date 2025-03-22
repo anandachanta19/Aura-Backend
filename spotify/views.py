@@ -81,19 +81,21 @@ def user_profile(request):
     except Exception as e:
         print(f"Error fetching Spotify data: {e}")
         return Response({"error": "Failed to fetch user data"}, status=500)
-    
+
+@api_view(['GET'])
 def go_to_home(request):
     """Redirect to the home page with the session key."""
     session_key = request.GET.get("session")
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return redirect(f"http://localhost:5173/home?session={session_key}")
+    return JsonResponse({"redirect_url": f"http://localhost:5173/home?session={session_key}"}, status=200)
 
+@api_view(['GET'])
 def go_to_profile(request):
     """Redirect to the profile page with the session key."""
     session_key = request.GET.get("session")
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
-    
-    return redirect(f"http://localhost:5173/profile?session={session_key}")
+
+    return JsonResponse({"redirect_url": f"http://localhost:5173/profile?session={session_key}"}, status=200)
