@@ -3,7 +3,7 @@ from .spotify_auth import refresh_token_if_expired
 from ..models import SpotifyToken
 
 def get_user_profile(token: SpotifyToken):
-    """Fetch the user's Spotify profile information."""
+    # Fetch the user's Spotify profile information.
     access_token = refresh_token_if_expired(token)
     sp = Spotify(auth=access_token)
     user_profile = sp.current_user()
@@ -16,7 +16,7 @@ def get_user_profile(token: SpotifyToken):
     }
 
 def get_user_top_artists(token: SpotifyToken, limit=5):
-    """Fetch the user's top artists."""
+    # Fetch the user's top artists.
     access_token = refresh_token_if_expired(token)
     sp = Spotify(auth=access_token)
     top_artists_response = sp.current_user_top_artists(limit=limit)
@@ -26,7 +26,7 @@ def get_user_top_artists(token: SpotifyToken, limit=5):
     ]
 
 def get_user_playlists(token: SpotifyToken, limit=5):
-    """Fetch the user's playlists."""
+    # Fetch the user's playlists.
     access_token = refresh_token_if_expired(token)
     sp = Spotify(auth=access_token)
     playlists_response = sp.current_user_playlists(limit=limit)
