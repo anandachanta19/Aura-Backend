@@ -19,4 +19,4 @@ def refresh_token_if_expired(token: SpotifyToken):
         token.expires_at = now() + timedelta(seconds=new_token['expires_in'])
         token.save()
 
-    return token.access_token
+    return token

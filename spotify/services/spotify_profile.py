@@ -4,7 +4,7 @@ from ..models import SpotifyToken
 
 def get_user_profile(token: SpotifyToken):
     # Fetch the user's Spotify profile information.
-    access_token = refresh_token_if_expired(token)
+    access_token = refresh_token_if_expired(token).access_token
     sp = Spotify(auth=access_token)
     user_profile = sp.current_user()
 
@@ -17,7 +17,7 @@ def get_user_profile(token: SpotifyToken):
 
 def get_user_top_artists(token: SpotifyToken, limit=5):
     # Fetch the user's top artists.
-    access_token = refresh_token_if_expired(token)
+    access_token = refresh_token_if_expired(token).access_token
     sp = Spotify(auth=access_token)
     top_artists_response = sp.current_user_top_artists(limit=limit)
 

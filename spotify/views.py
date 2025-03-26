@@ -11,6 +11,7 @@ from django.utils import timezone
 from .services.spotify_utils import get_spotify_token_by_session
 from .services.spotify_profile import get_user_profile, get_user_top_artists, get_user_playlists
 from .services.spotify_library import get_recently_played_tracks, get_user_playlists
+from .services.spotify_playlist import get_playlist_details
 
 @api_view(['GET'])
 def hello_message(request):
@@ -141,3 +142,35 @@ def user_library(request):
     except Exception as e:
         print(f"Error fetching Spotify library data: {e}")
         return Response({"error": "Failed to fetch user data"}, status=500)
+    
+@api_view(['GET'])
+def go_to_playlist(request):
+    # Redirect to the profile page with the session key.
+    session_key = request.GET.get("session")
+    playlist_id = request.GET.get("playlist_id")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    return JsonResponse({"redirect_url": f"http://localhost:5173/playlist?session={session_key}&playlist_id={playlist_id}"}, status=200)
+      
+@api_view(["GET"])
+def get_user_playlist(request):
+    # Fetch a user's playlist details including the songs inside it.
+    session_key = request.GET.get("session")
+    print(session_key)
+    playlist_id = request.GET.get("playlist_id")
+    print(playlist_id)
+
+    if not session_key or not playlist_id:
+        return Response({"error": "Session key and playlist ID are required"}, status=400)
+
+    token = get_spotify_token_by_session(session_key)
+    if not token:
+        return Response({"error": "Invalid session or token not found"}, status=401)
+
+    try:
+        playlist_data = get_playlist_details(token, playlist_id)
+        return Response(playlist_data, status=200)
+    except Exception as e:
+        print(f"Error fetching playlist data: {e}")
+        return Response({"error": "Failed to fetch playlist data"}, status=500)

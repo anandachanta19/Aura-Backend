@@ -4,7 +4,7 @@ from ..models import SpotifyToken
 
 def get_recently_played_tracks(token: SpotifyToken, limit=10):
     # Fetch recently played tracks from Spotify API.
-    access_token = refresh_token_if_expired(token)
+    access_token = refresh_token_if_expired(token).access_token
     sp = Spotify(auth=access_token)
 
     recently_played = sp.current_user_recently_played(limit=limit)
@@ -21,7 +21,7 @@ def get_recently_played_tracks(token: SpotifyToken, limit=10):
 
 def get_user_playlists(token: SpotifyToken, limit=10):
     # Fetch the user's playlists from Spotify API.
-    access_token = refresh_token_if_expired(token)
+    access_token = refresh_token_if_expired(token).access_token
     sp = Spotify(auth=access_token)
 
     playlists_response = sp.current_user_playlists(limit=limit)
