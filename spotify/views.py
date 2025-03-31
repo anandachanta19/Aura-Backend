@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from spotify.models import SpotifyToken
+from spotify.services.spotify_mediaplayer import get_track_details, get_related_tracks
 from .handlers.session_handler import SpotifySessionHandler
 from django.utils import timezone
 from .services.spotify_utils import get_spotify_token_by_session
@@ -145,7 +146,6 @@ def user_library(request):
     
 @api_view(['GET'])
 def go_to_playlist(request):
-    # Redirect to the profile page with the session key.
     session_key = request.GET.get("session")
     playlist_id = request.GET.get("playlist_id")
     if not session_key:
@@ -170,7 +170,81 @@ def get_user_playlist(request):
 
     try:
         playlist_data = get_playlist_details(token, playlist_id)
+        for track in playlist_data.get("songs", []):
+            track["accessToken"] = token.access_token  # Include access token for each track
         return Response(playlist_data, status=200)
     except Exception as e:
         print(f"Error fetching playlist data: {e}")
         return Response({"error": "Failed to fetch playlist data"}, status=500)
+
+
+@api_view(["GET"])
+def get_track_data(request):
+    """
+    API view to return track details for playback.
+    Expects 'session' and 'track_id' as query parameters.
+    """
+    session_key = request.GET.get("session")
+    track_id = request.GET.get("track_id")
+    
+    if not session_key or not track_id:
+        return Response({"error": "Session key and track ID are required"}, status=400)
+    
+    token = get_spotify_token_by_session(session_key)
+    if not token:
+        return Response({"error": "Invalid session or token not found"}, status=401)
+    
+    try:
+        track_data = get_track_details(token, track_id)
+        # Optionally, you might include the access token (if safe to do so)
+        # for the Web Playback SDK. In production, use secure methods.
+        track_data["accessToken"] = token.access_token
+        return Response(track_data, status=200)
+    except Exception as e:
+        return Response({"error": "Failed to fetch track data"}, status=500)
+
+@api_view(["GET"])
+def get_related_tracks_view(request):
+    """
+    API view to return related tracks for a given track ID.
+    Expects 'session' and 'track_id' as query parameters.
+    """
+    session_key = request.GET.get("session")
+    track_id = request.GET.get("track_id")
+
+    if not session_key or not track_id:
+        return Response({"error": "Session key and track ID are required"}, status=400)
+
+    token = get_spotify_token_by_session(session_key)
+    if not token:
+        return Response({"error": "Invalid session or token not found"}, status=401)
+
+    try:
+        related_tracks = get_related_tracks(token, track_id)
+        if not related_tracks:
+            return Response({"message": "No related tracks found for the given track."}, status=404)
+        return Response({"tracks": related_tracks}, status=200)  # Wrap related tracks in a "tracks" key
+    except Exception as e:
+        print(f"Error fetching related tracks: {e}")
+        return Response({"error": "Failed to fetch related tracks"}, status=500)
+
+@api_view(['GET'])
+def go_to_mediaplayer(request):
+    """
+    Redirect to the media player page with session and playlist or track ID.
+    """
+    session_key = request.GET.get("session")
+    playlist_id = request.GET.get("playlist_id")
+    track_id = request.GET.get("track_id")
+
+    if not session_key:
+        return JsonResponse({"error": "Session key is required."}, status=400)
+
+    if playlist_id:
+        redirect_url = f"http://localhost:5173/mediaplayer?session={session_key}&playlist_id={playlist_id}"
+    elif track_id:
+        redirect_url = f"http://localhost:5173/mediaplayer?session={session_key}&track_id={track_id}"
+    else:
+        return JsonResponse({"error": "Either playlist ID or track ID is required."}, status=400)
+
+    return JsonResponse({"redirect_url": redirect_url}, status=200)
