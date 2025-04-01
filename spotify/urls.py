@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import get_track_data, get_user_playlist, go_to_playlist, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer
+from .views import get_track_data, get_user_playlist, go_to_playlist, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer, spotify_logout
 
 urlpatterns = [
     path('hello/', hello_message, name='frontend_connection'),
@@ -16,4 +16,5 @@ urlpatterns = [
     path('spotify/track/', get_track_data, name='get_track_data'),
     path('spotify/related-tracks/', get_related_tracks_view, name='get_related_tracks'),
     path('go/mediaplayer/', go_to_mediaplayer, name='go_to_mediaplayer'),
+    path('spotify/logout/', spotify_logout, name='spotify_logout'),
 ]

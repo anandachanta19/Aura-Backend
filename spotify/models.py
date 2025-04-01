@@ -9,3 +9,14 @@ class SpotifyToken(models.Model):
     expires_at = models.DateTimeField()
     token_type = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class ActiveSession(models.Model):
+    session_key = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['session_key', 'is_active']),
+        ]

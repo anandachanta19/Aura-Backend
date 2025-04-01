@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from spotify.models import SpotifyToken
+from spotify.models import SpotifyToken, ActiveSession
 from spotify.services.spotify_mediaplayer import get_track_details, get_related_tracks
 from .handlers.session_handler import SpotifySessionHandler
 from django.utils import timezone
@@ -55,6 +55,13 @@ def spotify_callback(request):
 
             # Redirect to frontend with session key
             session_key = request.session.session_key
+
+            # Create or update active session
+            ActiveSession.objects.update_or_create(
+                session_key=session_key,
+                defaults={'is_active': True}
+            )
+
             return redirect(f"http://localhost:5173/home?session={session_key}")
     except PermissionDenied as e:
         print(f"Error during callback: {e}")
@@ -248,3 +255,30 @@ def go_to_mediaplayer(request):
         return JsonResponse({"error": "Either playlist ID or track ID is required."}, status=400)
 
     return JsonResponse({"redirect_url": redirect_url}, status=200)
+
+@api_view(['GET'])
+def spotify_logout(request):
+    """Handle user logout."""
+    session_key = request.GET.get("session")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    try:
+        # Invalidate the session
+        ActiveSession.objects.filter(session_key=session_key).update(is_active=False)
+        # Delete the token
+        SpotifyToken.objects.filter(session_key=session_key).delete()
+        # Clear session data
+        request.session.flush()
+        return JsonResponse({"redirect_url": "http://localhost:5173"}, status=200)
+    except Exception as e:
+        print(f"Error during logout: {e}")
+        return JsonResponse({"error": "Failed to logout"}, status=500)
+
+# Add this utility function
+def validate_session(session_key):
+    """Validate if a session is active"""
+    return ActiveSession.objects.filter(
+        session_key=session_key,
+        is_active=True
+    ).exists()
