@@ -10,7 +10,7 @@ from spotify.models import SpotifyToken, ActiveSession
 from spotify.services.spotify_mediaplayer import get_track_details, get_related_tracks
 from .handlers.session_handler import SpotifySessionHandler
 from django.utils import timezone
-from .services.spotify_utils import get_spotify_token_by_session
+from .services.spotify_utils import get_spotify_token_by_session, refresh_spotify_token
 from .services.spotify_profile import get_user_profile, get_user_top_artists, get_user_playlists
 from .services.spotify_library import get_recently_played_tracks, get_user_playlists
 from .services.spotify_playlist import get_playlist_details
@@ -25,6 +25,7 @@ from transformers import pipeline
 import json
 import lyricsgenius
 import re
+import random
 
 @api_view(['GET'])
 def hello_message(request):
@@ -455,3 +456,83 @@ def get_lyrics(request):
     except Exception as e:
         print(f"Error fetching lyrics: {e}")
         return JsonResponse({"error": "Failed to fetch lyrics."}, status=500)
+
+@api_view(['POST'])
+def go_to_recommend_songs(request):
+    """
+    Redirect to the Recommend Songs page with the session key, emotion, and genres.
+    """
+    session_key = request.GET.get("session")
+    data = json.loads(request.body)
+    emotion = data.get("emotion")
+    genres = data.get("genres")
+
+    if not session_key or not emotion or not genres:
+        return JsonResponse({"error": "Session key, emotion, and genres are required."}, status=400)
+
+    return JsonResponse({
+        "redirect_url": f"http://localhost:5173/recommend/songs?session={session_key}",
+        "emotion": emotion,
+        "genres": genres
+    }, status=200)
+
+# Updated Emotion to Spotify genres mapping
+EMOTION_GENRE_MAPPING = {
+    "Happy": ["pop", "dance", "electronic", "funk", "disco"],
+    "Sad": ["acoustic", "blues", "classical", "soul", "folk"],
+    "Angry": ["metal", "rock", "punk", "hardcore", "grunge"],
+    "Surprise": ["indie", "alternative", "experimental", "psychedelic"],
+    "Excited": ["hip-hop", "rap", "party", "trap", "reggaeton"],
+    "Calm": ["ambient", "chill", "jazz", "lo-fi", "new-age"],
+}
+
+@api_view(['POST'])
+def recommend_songs(request):
+    """
+    Recommend songs based on emotion and genres using Spotify's /search API.
+    """
+    session_key = request.GET.get("session")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        emotion = data.get("emotion")
+        genres = data.get("genres")
+
+        if not emotion or not genres:
+            return JsonResponse({"error": "Emotion and genres are required."}, status=400)
+
+        token = get_spotify_token_by_session(session_key)
+        if not token:
+            return JsonResponse({"error": "Invalid session or token not found"}, status=401)
+
+        # Refresh token if expired
+        if token.expires_at <= timezone.now():
+            token = refresh_spotify_token(token)
+
+        sp = spotipy.Spotify(auth=token.access_token)
+        recommended_songs = []
+
+        for genre in genres:
+            results = sp.search(q=f"genre:{genre}", type="track", limit=50)  # Increase limit to 1000
+            all_tracks = [
+                {
+                    "name": track["name"],
+                    "artist": ", ".join(artist["name"] for artist in track["artists"]),
+                    "album": track["album"]["name"],
+                    "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
+                    "track_id": track["id"],
+                }
+                for track in results["tracks"]["items"]
+            ]
+            recommended_songs.extend(all_tracks)
+
+        recommended_songs = random.sample(recommended_songs, min(10, len(recommended_songs)))  # Select 5 random songs
+        return JsonResponse({"songs": recommended_songs}, status=200)
+    except spotipy.exceptions.SpotifyException as e:
+        print(f"Spotify API error: {e}")
+        return JsonResponse({"error": "Failed to fetch songs from Spotify."}, status=500)
+    except Exception as e:
+        print(f"Error in recommend_songs: {e}")
+        return JsonResponse({"error": "Failed to recommend songs."}, status=500)

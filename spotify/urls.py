@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import detect_emotion, get_dominant_emotion, get_track_data, get_user_playlist, go_to_detect_emotion, go_to_playlist, go_to_select_emotion, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer, spotify_logout, get_lyrics
+from .views import detect_emotion, get_dominant_emotion, get_track_data, get_user_playlist, go_to_detect_emotion, go_to_playlist, go_to_select_emotion, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer, spotify_logout, get_lyrics, go_to_recommend_songs, recommend_songs
 
 urlpatterns = [
     path('hello/', hello_message, name='frontend_connection'),
@@ -22,4 +22,6 @@ urlpatterns = [
     path('detect/emotion/', detect_emotion, name='detect_emotion'),
     path('get/dominant/emotion/', get_dominant_emotion, name='get_dominant_emotion'),
     path('spotify/lyrics/', get_lyrics, name='get_lyrics'),
+    path('go/recommend/songs/', go_to_recommend_songs, name='go_to_recommend_songs'),
+    path('recommend/songs/', recommend_songs, name='recommend_songs'),
 ]
