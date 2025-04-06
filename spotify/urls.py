@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import get_track_data, get_user_playlist, go_to_playlist, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer, spotify_logout
+from .views import detect_emotion, get_dominant_emotion, get_track_data, get_user_playlist, go_to_detect_emotion, go_to_playlist, go_to_select_emotion, hello_message, spotify_login, spotify_callback, user_profile, go_to_home, go_to_profile, go_to_library, user_library, go_to_about, get_related_tracks_view, go_to_mediaplayer, spotify_logout, get_lyrics
 
 urlpatterns = [
     path('hello/', hello_message, name='frontend_connection'),
@@ -17,4 +17,9 @@ urlpatterns = [
     path('spotify/related-tracks/', get_related_tracks_view, name='get_related_tracks'),
     path('go/mediaplayer/', go_to_mediaplayer, name='go_to_mediaplayer'),
     path('spotify/logout/', spotify_logout, name='spotify_logout'),
+    path('go/select/emotion/', go_to_select_emotion, name='go_to_select_emotion'),
+    path('go/detect/emotion/', go_to_detect_emotion, name='go_to_detect_emotion'),
+    path('detect/emotion/', detect_emotion, name='detect_emotion'),
+    path('get/dominant/emotion/', get_dominant_emotion, name='get_dominant_emotion'),
+    path('spotify/lyrics/', get_lyrics, name='get_lyrics'),
 ]

@@ -1,3 +1,4 @@
+import os
 import spotipy
 from django.shortcuts import redirect
 from django.contrib.auth.models import User
@@ -13,6 +14,17 @@ from .services.spotify_utils import get_spotify_token_by_session
 from .services.spotify_profile import get_user_profile, get_user_top_artists, get_user_playlists
 from .services.spotify_library import get_recently_played_tracks, get_user_playlists
 from .services.spotify_playlist import get_playlist_details
+import cv2
+from deepface import DeepFace
+import numpy as np
+import base64
+import json
+from django.views.decorators.csrf import csrf_exempt
+import requests
+from transformers import pipeline
+import json
+import lyricsgenius
+import re
 
 @api_view(['GET'])
 def hello_message(request):
@@ -275,10 +287,171 @@ def spotify_logout(request):
         print(f"Error during logout: {e}")
         return JsonResponse({"error": "Failed to logout"}, status=500)
 
-# Add this utility function
 def validate_session(session_key):
     """Validate if a session is active"""
     return ActiveSession.objects.filter(
         session_key=session_key,
         is_active=True
     ).exists()
+
+@api_view(['GET'])
+def go_to_select_emotion(request):
+    session_key = request.GET.get("session")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    return JsonResponse({"redirect_url": f"http://localhost:5173/select/emotion?session={session_key}"}, status=200)
+
+@api_view(['GET'])
+def go_to_detect_emotion(request):
+    session_key = request.GET.get("session")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    return JsonResponse({"redirect_url": f"http://localhost:5173/detect/emotion?session={session_key}"}, status=200)
+
+@csrf_exempt
+def detect_emotion(request):
+    """Detect emotions from an image sent via POST request."""
+    session_key = request.GET.get("session") or request.POST.get("session")  # Check both GET and POST
+    if not session_key or not validate_session(session_key):
+        return JsonResponse({"error": "Invalid or missing session key"}, status=401)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            image_data = data['image'].split(',')[1]  # Remove "data:image/jpeg;base64,"
+            decoded_image = base64.b64decode(image_data)
+            np_image = np.frombuffer(decoded_image, np.uint8)
+            frame = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
+
+            if frame is None or frame.size == 0:
+                return JsonResponse({'error': 'Invalid image data'}, status=400)
+
+            # Resize frame to reduce memory usage (optional)
+            frame = cv2.resize(frame, (640, 480))
+
+            # Initialize emotion count
+            emotion_count = {'happy': 0, 'angry': 0, 'sad': 0, 'surprise': 0, 'neutral': 0, 'fear': 0}
+
+            # Convert to grayscale for face detection
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # Detect faces using Haar Cascade
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+            faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+            for (x, y, w, h) in faces:
+                # Ensure ROI is within bounds
+                x, y = max(0, x), max(0, y)
+                w, h = min(w, gray_frame.shape[1] - x), min(h, gray_frame.shape[0] - y)
+                if w <= 0 or h <= 0:
+                    continue
+
+                # Extract face ROI from original frame (BGR) and convert to RGB
+                face_roi = frame[y:y + h, x:x + w]
+                face_roi_rgb = cv2.cvtColor(face_roi, cv2.COLOR_BGR2RGB)
+
+                # Analyze emotions with DeepFace
+                try:
+                    result = DeepFace.analyze(face_roi_rgb, actions=['emotion'], enforce_detection=False)
+                    emotion = result[0]['dominant_emotion']
+                    if emotion in emotion_count:
+                        emotion_count[emotion] += 1
+                except Exception as e:
+                    print(f"Error analyzing emotion: {e}")
+                    continue
+
+            return JsonResponse(emotion_count)
+
+        except Exception as e:
+            print(f"Error in detect_emotion: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def get_dominant_emotion(request):
+    """Determine the dominant emotion from cumulative emotion counts."""
+    session_key = request.GET.get("session") or request.POST.get("session")
+    if not session_key or not validate_session(session_key):
+        return JsonResponse({"error": "Invalid or missing session key"}, status=401)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            emotion_count = data['emotion_count']
+            if not emotion_count:
+                return JsonResponse({'error': 'No emotion_count provided'}, status=400)
+
+            dominant_emotion = max(emotion_count, key=emotion_count.get)
+            return JsonResponse({'dominant_emotion': dominant_emotion})
+
+        except Exception as e:
+            print(f"Error in get_dominant_emotion: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@api_view(['GET'])
+def get_lyrics(request):
+    """
+    Fetch lyrics for a given song using Genius API.
+    Removes everything before the word 'Lyrics' and returns lyrics from the first verse.
+    Expects 'session', 'song_title', and 'artist_name' as query parameters.
+    """
+    session_key = request.GET.get("session")
+    song_title = request.GET.get("song_title")
+    artist_name = request.GET.get("artist_name")
+
+    if not session_key or not song_title or not artist_name:
+        return JsonResponse({"error": "Session key, song title, and artist name are required."}, status=400)
+
+    # Remove text within (), {}, and [] along with the brackets
+    processed_song_title = re.sub(r"[\(\{\[].*?[\)\}\]]", "", song_title).strip()
+    
+    # Extract the part before the hyphen if present
+    if " - " in processed_song_title:
+        processed_song_title = processed_song_title.split(" - ")[0].strip()
+
+    # Validate session
+    if not validate_session(session_key):
+        return JsonResponse({"error": "Invalid or inactive session key."}, status=401)
+
+    try:
+        # Initialize Genius API client
+        genius = lyricsgenius.Genius(
+            os.getenv("GENIUS_CLIENT_ACCESS_TOKEN"),
+            timeout=10,
+            retries=3
+        )
+
+        def clean_lyrics(lyrics):
+            """Remove everything before 'Lyrics' and return lyrics from the first verse."""
+            # Remove everything before the word 'Lyrics'
+            lyrics = re.split(r"(?i)Lyrics", lyrics, maxsplit=1)[-1].strip()
+            # Remove any text before the first verse
+            lyrics = re.split(r"\[.*?\]", lyrics, maxsplit=1)[-1].strip()
+            return lyrics
+
+        # Try fetching lyrics with the complete artist name
+        try:
+            song = genius.search_song(processed_song_title, artist_name)
+            if song and song.lyrics:
+                cleaned_lyrics = clean_lyrics(song.lyrics)
+                return JsonResponse({"lyrics": cleaned_lyrics}, status=200)
+        except Exception as e:
+            print(f"Error fetching lyrics with full artist name: {e}")
+
+        # If not found, split artist name by commas and try each part
+        for artist in artist_name.split(","):
+            artist = artist.strip()
+            try:
+                song = genius.search_song(processed_song_title, artist)
+                if song and song.lyrics:
+                    cleaned_lyrics = clean_lyrics(song.lyrics)
+                    return JsonResponse({"lyrics": cleaned_lyrics}, status=200)
+            except Exception as e:
+                print(f"Error fetching lyrics for {processed_song_title} by {artist}: {e}")
+                continue
+
+        return JsonResponse({"error": "Lyrics not found."}, status=404)
+    except Exception as e:
+        print(f"Error fetching lyrics: {e}")
+        return JsonResponse({"error": "Failed to fetch lyrics."}, status=500)
