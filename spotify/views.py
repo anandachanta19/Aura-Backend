@@ -536,3 +536,111 @@ def recommend_songs(request):
     except Exception as e:
         print(f"Error in recommend_songs: {e}")
         return JsonResponse({"error": "Failed to recommend songs."}, status=500)
+
+@api_view(['POST'])
+def create_playlist(request):
+    """Create a new playlist with the provided tracks."""
+    session_key = request.GET.get("session")
+    if not session_key:
+        return JsonResponse({"error": "Session key is missing."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        playlist_name = data.get("name")
+        track_ids = data.get("track_ids", [])
+        is_mood_changer = data.get("is_mood_changer", False)
+
+        if not playlist_name:
+            return JsonResponse({"error": "Playlist name is required."}, status=400)
+        
+        if not track_ids and not is_mood_changer:
+            return JsonResponse({"error": "Track IDs are required."}, status=400)
+
+        token = get_spotify_token_by_session(session_key)
+        if not token:
+            return JsonResponse({"error": "Invalid session or token not found"}, status=401)
+
+        # Refresh token if expired
+        if token.expires_at <= timezone.now():
+            token = refresh_spotify_token(token)
+
+        sp = spotipy.Spotify(auth=token.access_token)
+        
+        # Get the user's Spotify ID
+        user_profile = sp.current_user()
+        user_id = user_profile['id']
+        
+        # Handle mood changer playlist 
+        if is_mood_changer:
+            # Define a variety of positive genres to choose from
+            positive_genres = [
+                "happy", "feel-good", "summer", "dance", "disco", 
+                "pop", "upbeat", "party", "sunshine", "energetic",
+                "tropical", "groove", "funk", "soul", "positive",
+                "power-pop", "euphoric", "motivational", "inspiring"
+            ]
+            
+            # Use some of the existing tracks at the beginning for continuity (keeping the mood)
+            negative_tracks = track_ids[:3]  # Start with current mood tracks
+            
+            # Select 3-5 random genres for this particular playlist
+            selected_genres = random.sample(positive_genres, min(5, len(positive_genres)))
+            
+            # Build a pool of positive tracks from different genre searches
+            positive_tracks_pool = []
+            for genre in selected_genres:
+                try:
+                    # Search with a combination of terms to get varied results
+                    search_query = f"genre:{genre}"
+                    results = sp.search(q=search_query, type='track', limit=20)
+                    genre_tracks = [track['id'] for track in results['tracks']['items']]
+                    positive_tracks_pool.extend(genre_tracks)
+                except Exception as e:
+                    print(f"Error searching for genre {genre}: {e}")
+                    continue
+            
+            # If we found positive tracks, randomly select some for the playlist
+            if positive_tracks_pool:
+                # Ensure we don't have duplicates
+                positive_tracks_pool = list(set(positive_tracks_pool))
+                # Select a random subset (aiming for around 7-10 tracks)
+                positive_tracks = random.sample(
+                    positive_tracks_pool, 
+                    min(7, len(positive_tracks_pool))
+                )
+                
+                # Create a transitional playlist: negative mood → positive mood
+                track_ids = negative_tracks + positive_tracks
+            else:
+                # Fallback if genre searches didn't yield results
+                fallback_results = sp.search(q='mood:happy', type='track', limit=7)
+                fallback_tracks = [track['id'] for track in fallback_results['tracks']['items']]
+                track_ids = negative_tracks + fallback_tracks
+        
+        # Create an empty playlist
+        description = "Mood lifter playlist created by Aura" if is_mood_changer else f"Created from Aura on {timezone.now().strftime('%Y-%m-%d')}"
+        created_playlist = sp.user_playlist_create(
+            user=user_id,
+            name=playlist_name,
+            public=False,
+            description=description
+        )
+        
+        # Add tracks to the playlist (in batches of 100 if needed)
+        playlist_id = created_playlist['id']
+        for i in range(0, len(track_ids), 100):
+            batch = track_ids[i:i+100]
+            sp.playlist_add_items(playlist_id=playlist_id, items=batch)
+        
+        return JsonResponse({
+            "success": True, 
+            "playlist_id": playlist_id,
+            "message": "Playlist created successfully!"
+        }, status=201)
+    
+    except spotipy.exceptions.SpotifyException as e:
+        print(f"Spotify API error: {e}")
+        return JsonResponse({"error": f"Spotify API error: {str(e)}"}, status=500)
+    except Exception as e:
+        print(f"Error creating playlist: {e}")
+        return JsonResponse({"error": f"Failed to create playlist: {str(e)}"}, status=500)
