@@ -14,6 +14,7 @@ from .services.spotify_utils import get_spotify_token_by_session, refresh_spotif
 from .services.spotify_profile import get_user_profile, get_user_top_artists, get_user_playlists
 from .services.spotify_library import get_recently_played_tracks, get_user_playlists
 from .services.spotify_playlist import get_playlist_details
+from django.conf import settings
 import cv2
 from deepface import DeepFace
 import numpy as np
@@ -75,7 +76,7 @@ def spotify_callback(request):
                 defaults={'is_active': True}
             )
 
-            return redirect(f"http://localhost:5173/home?session={session_key}")
+            return redirect(f"{settings.FRONTEND_URL}/home?session={session_key}")
     except PermissionDenied as e:
         print(f"Error during callback: {e}")
 
@@ -111,7 +112,7 @@ def go_to_home(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/home?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/home?session={session_key}"}, status=200)
 
 @api_view(['GET'])
 def go_to_profile(request):
@@ -120,7 +121,7 @@ def go_to_profile(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/profile?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/profile?session={session_key}"}, status=200)
 
 @api_view(['GET'])
 def go_to_library(request):
@@ -129,7 +130,7 @@ def go_to_library(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/library?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/library?session={session_key}"}, status=200)
 
 @api_view(['GET'])
 def go_to_about(request):
@@ -138,7 +139,7 @@ def go_to_about(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/about?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/about?session={session_key}"}, status=200)
 
 @api_view(['GET'])
 def user_library(request):
@@ -171,7 +172,7 @@ def go_to_playlist(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/playlist?session={session_key}&playlist_id={playlist_id}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/playlist?session={session_key}&playlist_id={playlist_id}"}, status=200)
       
 @api_view(["GET"])
 def get_user_playlist(request):
@@ -261,9 +262,9 @@ def go_to_mediaplayer(request):
         return JsonResponse({"error": "Session key is required."}, status=400)
 
     if playlist_id:
-        redirect_url = f"http://localhost:5173/mediaplayer?session={session_key}&playlist_id={playlist_id}"
+        redirect_url = f"{settings.FRONTEND_URL}/mediaplayer?session={session_key}&playlist_id={playlist_id}"
     elif track_id:
-        redirect_url = f"http://localhost:5173/mediaplayer?session={session_key}&track_id={track_id}"
+        redirect_url = f"{settings.FRONTEND_URL}/mediaplayer?session={session_key}&track_id={track_id}"
     else:
         return JsonResponse({"error": "Either playlist ID or track ID is required."}, status=400)
 
@@ -283,7 +284,7 @@ def spotify_logout(request):
         SpotifyToken.objects.filter(session_key=session_key).delete()
         # Clear session data
         request.session.flush()
-        return JsonResponse({"redirect_url": "http://localhost:5173"}, status=200)
+        return JsonResponse({"redirect_url": settings.FRONTEND_URL}, status=200)
     except Exception as e:
         print(f"Error during logout: {e}")
         return JsonResponse({"error": "Failed to logout"}, status=500)
@@ -301,7 +302,7 @@ def go_to_select_emotion(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/select/emotion?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/select/emotion?session={session_key}"}, status=200)
 
 @api_view(['GET'])
 def go_to_detect_emotion(request):
@@ -309,7 +310,7 @@ def go_to_detect_emotion(request):
     if not session_key:
         return JsonResponse({"error": "Session key is missing."}, status=400)
 
-    return JsonResponse({"redirect_url": f"http://localhost:5173/detect/emotion?session={session_key}"}, status=200)
+    return JsonResponse({"redirect_url": f"{settings.FRONTEND_URL}/detect/emotion?session={session_key}"}, status=200)
 
 @csrf_exempt
 def detect_emotion(request):
@@ -471,7 +472,7 @@ def go_to_recommend_songs(request):
         return JsonResponse({"error": "Session key, emotion, and genres are required."}, status=400)
 
     return JsonResponse({
-        "redirect_url": f"http://localhost:5173/recommend/songs?session={session_key}",
+        "redirect_url": f"{settings.FRONTEND_URL}/recommend/songs?session={session_key}",
         "emotion": emotion,
         "genres": genres
     }, status=200)

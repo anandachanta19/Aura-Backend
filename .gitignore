@@ -1,2 +1,3 @@
 venv
-spotify/.env
+.env
+db.sqlite3
