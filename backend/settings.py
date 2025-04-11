@@ -31,9 +31,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-3y1q1qg!4gt#7t_lz=t^3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'on.render.com']
-
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'on.render.com', 'aura-backend-ktv0.onrender.com', '*.onrender.com']
 
 # Base URLs for frontend and backend
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
