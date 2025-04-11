@@ -415,10 +415,6 @@ def get_lyrics(request):
 
         # Try fetching lyrics with the complete artist name
         try:
-            # Log the URL being used for debugging
-            search_url = f"https://genius.com/api/search/multi?q={processed_song_title} {artist_name}"
-            print(f"Searching for lyrics using URL: {search_url}")
-
             song = genius.search_song(processed_song_title, artist_name)
             if song and song.lyrics:
                 cleaned_lyrics = clean_lyrics(song.lyrics)
@@ -430,10 +426,6 @@ def get_lyrics(request):
         for artist in artist_name.split(","):
             artist = artist.strip()
             try:
-                # Log the URL being used for debugging
-                search_url = f"https://genius.com/api/search/multi?q={processed_song_title} {artist}"
-                print(f"Searching for lyrics using URL: {search_url}")
-
                 song = genius.search_song(processed_song_title, artist)
                 if song and song.lyrics:
                     cleaned_lyrics = clean_lyrics(song.lyrics)
