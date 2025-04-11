@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: aura-backend
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn backend.wsgi:application --log-file -
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.13
+      - key: DEBUG
+        value: False
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend.settings
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: True

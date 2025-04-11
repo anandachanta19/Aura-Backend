@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +26,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-3y1q1qg!4gt#7t_lz=t^3xy@i$=frvu=d(!2n=4f--kclj&noi'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-3y1q1qg!4gt#7t_lz=t^3xy@i$=frvu=d(!2n=4f--kclj&noi')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'on.render.com']
+
+
 
 # Base URLs for frontend and backend
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
@@ -44,10 +51,12 @@ INSTALLED_APPS = [
     'spotify',
     'rest_framework',
     'corsheaders',
+    'whitenoise.runserver_nostatic',  # Add whitenoise for static files
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add whitenoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
@@ -81,12 +90,18 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# Configure database using DATABASE_URL environment variable or fall back to SQLite
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Use database URL if available (for Render deployment)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
 
 
 # Password validation
@@ -124,15 +139,26 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Configure CORS settings
+FRONTEND_URL_NO_PROTOCOL = FRONTEND_URL.replace('http://', '').replace('https://', '')
 CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL,
 ]
+
+# Add additional CORS origins for production
+if not DEBUG:
+    additional_origins = os.environ.get('ADDITIONAL_CORS_ORIGINS')
+    if additional_origins:
+        for origin in additional_origins.split(','):
+            CORS_ALLOWED_ORIGINS.append(origin.strip())
 
 CSRF_TRUSTED_ORIGINS = [
     FRONTEND_URL,  # Allow React to make authenticated requests
@@ -140,8 +166,18 @@ CSRF_TRUSTED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Default: database-backed sessions
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# In production, set to True if using HTTPS
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_AGE = 3600
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', 3600))
+
+# Security settings for production
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
