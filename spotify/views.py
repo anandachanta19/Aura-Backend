@@ -401,12 +401,12 @@ def get_lyrics(request):
         # Initialize Genius API client
         # Modify your genius client initialization with custom headers
         genius = lyricsgenius.Genius(
-            os.getenv("GENIUS_CLIENT_ACCESS_TOKEN"),
-            timeout=10,
-            retries=3,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            sleep_time=0.5  # Add delay between requests
-        )
+        os.getenv("GENIUS_CLIENT_ACCESS_TOKEN"),
+        timeout=10,
+        retries=3,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        sleep_time=0.5
+    )
 
         def clean_lyrics(lyrics):
             """Remove everything before 'Lyrics' and return lyrics from the first verse."""
