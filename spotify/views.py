@@ -43,31 +43,10 @@ def spotify_callback(request):
     """Handle Spotify OAuth callback."""
     handler = SpotifySessionHandler(request)
     try:
+        # Let the handler exchange the code for tokens
         if handler.handle_callback():
-            # Get the access token information
-            token_info = handler.auth_manager.get_access_token(request.GET['code'])
-
-            # Fetch the Spotify user id
-            sp = spotipy.Spotify(auth=token_info['access_token'])
-            spotify_user = sp.current_user()
-            spotify_user_id = spotify_user.get('id')
-
-            # Fetch or create a Django user object based on Spotify user ID
-            user, created = User.objects.get_or_create(username=spotify_user_id)
-
-            # Save the token associated with this user
-            SpotifyToken.objects.update_or_create(
-                user=user,
-                defaults={
-                    'session_key': request.session.session_key,
-                    'access_token': token_info['access_token'],
-                    'refresh_token': token_info['refresh_token'],
-                    'expires_at': timezone.now() + timezone.timedelta(seconds=token_info['expires_in']),
-                    'token_type': token_info['token_type']
-                }
-            )
-
-            # Redirect to frontend with session key
+            # The token has already been saved in the database by the handler
+            # We just need to create/update the active session
             session_key = request.session.session_key
 
             # Create or update active session
@@ -79,6 +58,8 @@ def spotify_callback(request):
             return redirect(f"{settings.FRONTEND_URL}/home?session={session_key}")
     except PermissionDenied as e:
         print(f"Error during callback: {e}")
+    except Exception as e:
+        print(f"Unexpected error during callback: {str(e)}")
 
     return Response({"error": "Authentication failed"}, status=400)
 
