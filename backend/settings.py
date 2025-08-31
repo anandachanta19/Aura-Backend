@@ -169,7 +169,7 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', 3600))
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', 30))
 
 # Security settings for production
 if not DEBUG:
